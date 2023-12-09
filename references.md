@@ -1,1 +1,1 @@
-Class Lectures- https://github.com/warestack/cc/tree/master
+Class Lectures- https://github.com/warestack/cc/tree/masters
