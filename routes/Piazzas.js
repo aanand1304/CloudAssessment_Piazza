@@ -51,16 +51,18 @@ const Post = require('../models/PiazzaSchema')
 // });
 router.post('/', verifyToken, async (req, res) => {
     try {
+        ///we are taking input from user 
         const { post_title, post_topics, post_body, userExpirationTimeInMinutes } = req.body;
 
-        // Validate user input as needed
+        // Based on user input, we are calculating expiration time and current user details.
 
-        // Calculate expiration time
+        // calculating expiration time
         const currentTime = new Date();
         const expirationTime = new Date(currentTime.getTime() + userExpirationTimeInMinutes * 60 * 1000);
 
-        // We are using token information to get posting user ID
-        const post_owner = req.user._id; // Assuming '_id' has the user information belong to user
+        // We are using hre token information to get posting user ID
+        const { _id: post_owner, username } = req.user;
+
 
         const newPost = new Piazza({
             post_title,
@@ -79,8 +81,8 @@ router.post('/', verifyToken, async (req, res) => {
         res.status(400).send({ message: error.message });
     }
 });
-
-router.get('/',verifyToken, async (req, res) => {
+///////////////////////////
+router.get('/a',verifyToken, async (req, res) => {
     try {
         const getPosts = await Piazza.find().limit(10)
         res.send(getPosts)
@@ -99,24 +101,29 @@ router.get('/:postId',verifyToken, async(req,res) =>{
     }
 })
 
-
-// Middleware to check post expiration
+///check expiration
 const checkPostExpiration = async (req, res, next) => {
-    const postId = req.params.postId; // Assuming postId is passed in the URL
+    const postId = req.params.postId;
+    const userId = req.params.userId;
 
     try {
         const post = await Piazza.findById(postId);
+
+        // Check if the user is the owner of the post
+        if ((String(post.post_owner) === String(userId))) {
+            return res.status(400).json({ message: 'You cannot like your own post' });
+        }
 
         if (post.post_status === 'Live' && post.post_expirationTime < new Date()) {
             // Post is expired
             post.post_status = 'Expired';
             await post.save();
-            return res.status(400).json({ message: "Your post has been expired. You can't like/ dislike/ comment on the post." });
+            return res.status(400).json({ message: "Your post has been expired. You can't like/dislike/comment on the post." });
         }
 
         if (post.post_status === 'Expired') {
             // Post is already expired
-            return res.status(400).json({ message: "Your post is already expired. You can't like/ dislike/ comment on the post." });
+            return res.status(400).json({ message: "Your post is already expired. You can't like/dislike/comment on the post." });
         }
 
         next(); // Move to the next middleware
@@ -127,13 +134,163 @@ const checkPostExpiration = async (req, res, next) => {
 };
 
 
-// Route for disliking a post
+
+
+
+// Route for liking a post
+router.post('/like/:postId/:userId', verifyToken, checkPostExpiration, async (req, res) => {
+    const { postId, userId } = req.params;
+
+    // Check if the post with the given postId exists
+    const existingPost = await Piazza.findById(postId);
+    if (!existingPost) {
+        return res.status(404).json({ message: 'Post not found' });
+    }
+
+    // Check if the user with the given userId exists
+    const existingUser = await User.findById(userId);
+    if (!existingUser) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if login user is the owner of the post
+    if (existingPost.post_owner.equals(userId)) {
+        return res.status(400).json({ message: 'You cannot like your own post' });
+    }
+
+    // Check if the user has already liked the post
+    if (existingPost.post_likedBy.includes(userId)) {
+        return res.status(400).json({ message: 'You have already liked this post' });
+    }
+
+    try {
+        // If the user has disliked the post, remove the dislike
+        if (existingPost.post_dislikedBy.includes(userId)) {
+            existingPost.post_dislikedBy.splice(existingPost.post_dislikedBy.indexOf(userId), 1);
+            existingPost.post_dislikes -= 1;
+        }
+
+        // Add the like
+        existingPost.post_likedBy.push(userId);
+        existingPost.post_likes += 1;
+
+        // Save the updated post
+        const updatedPost = await existingPost.save();
+
+        res.status(200).json({ message: 'Post like status updated successfully', updatedPost });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// router.post('/like/:postId/:userId', verifyToken,checkPostExpiration, async (req, res) => {
+//     const { postId, userId } = req.params;
+
+    
+
+//         // Check if the user is the owner of the post
+//         if (existingPost.post_owner.equals(userId)) {
+//             return res.status(400).json({ message: 'You cannot like your own post' });
+//         }
+        
+//         // Check if the post with the given postId exists
+//         const existingPost = await Piazza.findById(postId);
+//         if (!existingPost) {
+//             return res.status(404).json({ message: 'Post not found' });
+//         }
+
+//         // Check if the user with the given userId exists
+//         const existingUser = await User.findById(userId);
+//         if (!existingUser) {
+//             return res.status(404).json({ message: 'User not found' });
+//         }
+//     try {
+//         // Check if the user has already liked the post
+//         if (existingPost.post_likedBy.includes(userId)) {
+//             return res.status(400).json({ message: 'You have already liked this post' });
+//         }
+
+//         // If the user has disliked the post, remove the dislike
+//         if (existingPost.post_dislikedBy.includes(userId)) {
+//             existingPost.post_dislikedBy.splice(existingPost.post_dislikedBy.indexOf(userId), 1);
+//             existingPost.post_dislikes -= 1;
+//         }
+
+//         // Add the like
+//         existingPost.post_likedBy.push(userId);
+//         existingPost.post_likes += 1;
+
+//         // Save the updated post
+//         const updatedPost = await existingPost.save();
+
+//         res.status(200).json({ message: 'Post like status updated successfully', updatedPost });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ message: 'Internal Server Error' });
+//     }
+// });
+
+
+
+// //route for dislike post
+// // Route for disliking a post
+// router.post('/dislike/:postId/:userId', verifyToken, checkPostExpiration, async (req, res) => {
+//     const { postId, userId } = req.params;
+
+//     // Check if the post with the given postId exists
+//     const existingPost = await Piazza.findById(postId);
+
+//     if (!existingPost) {
+//         return res.status(404).json({ message: 'Post not found' });
+//     }
+
+//     // Check if the user with the given userId exists
+//     const existingUser = await User.findById(userId);
+//     if (!existingUser) {
+//         return res.status(404).json({ message: 'User not found' });
+//     }
+
+//     // Check if the user has already disliked the post
+//     if (existingPost.post_dislikedBy.includes(userId)) {
+//         return res.status(400).json({ message: 'You have already disliked this post' });
+//     }
+
+//     try {
+//         // If the user has liked the post, remove the like
+//         if (existingPost.post_likedBy.includes(userId)) {
+//             existingPost.post_likedBy.splice(existingPost.post_likedBy.indexOf(userId), 1);
+//             existingPost.post_likes -= 1;
+//         }
+
+//         // Add the dislike
+//         existingPost.post_dislikedBy.push(userId);
+//         existingPost.post_dislikes += 1;
+
+//         // Save the updated post
+//         const updatedPost = await existingPost.save();
+
+//         res.status(200).json({ message: 'Post dislike status updated successfully', updatedPost });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ message: 'Internal Server Error' });
+//     }
+// });
+
+// // Route for disliking a post
 router.post('/dislike/:postId/:userId',verifyToken,checkPostExpiration, async (req, res) => {
     const { postId, userId } = req.params;
 
     try {
         // Check if the post with the given postId exists
         const existingPost = await Piazza.findById(postId);
+        console.log('postOwner:', postOwner)
+
+         // Check if the user is the owner of the post
+         if (existingPost.post_owner === userId) {
+            return res.status(400).json({ message: 'Its your post' });
+        }   
+
         if (!existingPost) {
             return res.status(404).json({ message: 'Post not found' });
         }
@@ -169,49 +326,7 @@ router.post('/dislike/:postId/:userId',verifyToken,checkPostExpiration, async (r
     }
 });
 
-
-// Route for liking a post
-router.post('/like/:postId/:userId', verifyToken,checkPostExpiration, async (req, res) => {
-    const { postId, userId } = req.params;
-
-    try {
-        // Check if the post with the given postId exists
-        const existingPost = await Piazza.findById(postId);
-        if (!existingPost) {
-            return res.status(404).json({ message: 'Post not found' });
-        }
-
-        // Check if the user with the given userId exists
-        const existingUser = await User.findById(userId);
-        if (!existingUser) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        // Check if the user has already liked the post
-        if (existingPost.post_likedBy.includes(userId)) {
-            return res.status(400).json({ message: 'You have already liked this post' });
-        }
-
-        // If the user has disliked the post, remove the dislike
-        if (existingPost.post_dislikedBy.includes(userId)) {
-            existingPost.post_dislikedBy.splice(existingPost.post_dislikedBy.indexOf(userId), 1);
-            existingPost.post_dislikes -= 1;
-        }
-
-        // Add the like
-        existingPost.post_likedBy.push(userId);
-        existingPost.post_likes += 1;
-
-        // Save the updated post
-        const updatedPost = await existingPost.save();
-
-        res.status(200).json({ message: 'Post like status updated successfully', updatedPost });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal Server Error' });
-    }
-});
-
+///Comment
 router.post('/comment/:postId/:userId', checkPostExpiration, async (req, res) => {
     const { postId, userId } = req.params;
     const { commentText } = req.body;
@@ -247,3 +362,4 @@ router.post('/comment/:postId/:userId', checkPostExpiration, async (req, res) =>
 });
 
 module.exports = router
+
