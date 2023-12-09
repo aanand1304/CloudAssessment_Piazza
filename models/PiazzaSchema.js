@@ -20,7 +20,8 @@ const piazzaSchema = mongoose.Schema({
     },
     post_expirationTime: {
         type: Date,
-        default: () => Date.now() + 2 * 60 * 60 * 1000, //setting default to 2 hrs
+        required: true,
+        //default: () => Date.now() + 2 * 60 * 60 * 1000, //setting default to 2 hrs
     },
     post_status: {
         type: String,
@@ -28,8 +29,9 @@ const piazzaSchema = mongoose.Schema({
         default: 'Live',
     },
     post_owner: {
-        type: String,
-        required: true,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default:null,
     },
     post_likes: {
         type: Number,

@@ -1,26 +1,84 @@
 const express = require('express')
 const router = express.Router()
 
+
 const User = require('../models/UserSchema')
 const Piazza = require('../models/PiazzaSchema')
 const verifyToken = require('../verifyToken')
 const Post = require('../models/PiazzaSchema')
-
-router.post('/', verifyToken, async (req, res) => {
-        const newPost = new Piazza({
-            post_title: req.body.post_title,
-            post_topics: req.body.post_topics,
-            post_body: req.body.post_body,
-            post_owner: req.body.post_owner
-        })
+// //*
+// router.post('/', verifyToken, async (req, res) => {
+//         const newPost = new Piazza({
+//             post_title: req.body.post_title,
+//             post_topics: req.body.post_topics,
+//             post_body: req.body.post_body,
+//             post_owner: req.body.post_owner
+//         })
     
-    try{
-        const postToSave = await newPost.save()
-        res.send(postToSave);
-    } catch (err) {
-        res.status(400).send({message:err})
+//     try{
+//         const postToSave = await newPost.save()
+//         res.send(postToSave);
+//     } catch (err) {
+//         res.status(400).send({message:err})
+//     }
+// })
+// *//
+
+// router.post('/', async (req, res) => {
+//     const { post_title, post_topics, post_body, post_owner, userExpirationTimeInMinutes } = req.body;
+
+//     // Validate user input as needed
+
+//     // Calculate expiration time
+//     const currentTime = new Date();
+//     const expirationTime = new Date(currentTime.getTime() + userExpirationTimeInMinutes * 60 * 1000);
+
+//     const newPost = new Piazza({
+//         post_title,
+//         post_topics,
+//         post_body,
+//         post_owner,
+//         post_expirationTime: expirationTime,
+//         // ... other fields
+//     });
+
+//     try {
+//         const postToSave = await newPost.save();
+//         res.status(201).send(postToSave);
+//     } catch (err) {
+//         res.status(400).send({ message: err.message });
+//     }
+// });
+router.post('/', verifyToken, async (req, res) => {
+    try {
+        const { post_title, post_topics, post_body, userExpirationTimeInMinutes } = req.body;
+
+        // Validate user input as needed
+
+        // Calculate expiration time
+        const currentTime = new Date();
+        const expirationTime = new Date(currentTime.getTime() + userExpirationTimeInMinutes * 60 * 1000);
+
+        // We are using token information to get posting user ID
+        const post_owner = req.user._id; // Assuming '_id' has the user information belong to user
+
+        const newPost = new Piazza({
+            post_title,
+            post_topics,
+            post_body,
+            post_owner,
+            post_expirationTime: expirationTime,
+        });
+
+        // Save the post to the database
+        const savedPost = await newPost.save();
+
+        res.status(201).send(savedPost);
+    } catch (error) {
+        console.error(error);
+        res.status(400).send({ message: error.message });
     }
-})
+});
 
 router.get('/',verifyToken, async (req, res) => {
     try {
@@ -31,6 +89,7 @@ router.get('/',verifyToken, async (req, res) => {
 
     }
 });
+
 router.get('/:postId',verifyToken, async(req,res) =>{
     try{
         const getPostById = await Piazza.findById(req.params.postId)
@@ -40,8 +99,7 @@ router.get('/:postId',verifyToken, async(req,res) =>{
     }
 })
 
-///check post expiration
-// Middleware to check post expiration
+
 // Middleware to check post expiration
 const checkPostExpiration = async (req, res, next) => {
     const postId = req.params.postId; // Assuming postId is passed in the URL
