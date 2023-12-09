@@ -49,19 +49,21 @@ const Post = require('../models/PiazzaSchema')
 //         res.status(400).send({ message: err.message });
 //     }
 // });
+
+//I am post portion of the code use for to post....localhost:3000/app/post/
 router.post('/', verifyToken, async (req, res) => {
     try {
         ///we are taking input from user 
-        const { post_title, post_topics, post_body, userExpirationTimeInMinutes } = req.body;
+        const { post_title, post_topics, post_body, userExpirationTimeInMinutes } = req.body
 
         // Based on user input, we are calculating expiration time and current user details.
 
         // calculating expiration time
-        const currentTime = new Date();
-        const expirationTime = new Date(currentTime.getTime() + userExpirationTimeInMinutes * 60 * 1000);
+        const currentTime = new Date()
+        const expirationTime = new Date(currentTime.getTime() + userExpirationTimeInMinutes * 60 * 1000)
 
         // We are using hre token information to get posting user ID
-        const { _id: post_owner, username } = req.user;
+        const { _id: post_owner, username } = req.user
 
 
         const newPost = new Piazza({
@@ -69,28 +71,18 @@ router.post('/', verifyToken, async (req, res) => {
             post_topics,
             post_body,
             post_owner,
-            post_expirationTime: expirationTime,
+            post_expirationTime: expirationTime
         });
 
         // Save the post to the database
-        const savedPost = await newPost.save();
+        const savedPost = await newPost.save()
 
-        res.status(201).send(savedPost);
-    } catch (error) {
-        console.error(error);
-        res.status(400).send({ message: error.message });
-    }
-});
-///////////////////////////
-router.get('/a',verifyToken, async (req, res) => {
-    try {
-        const getPosts = await Piazza.find().limit(10)
-        res.send(getPosts)
+        res.status(201).send(savedPost)
     } catch (err) {
-        res.send({message:err})
-
+        res.json({ message: err })
     }
-});
+})
+///////////////////////////
 
 router.get('/:postId',verifyToken, async(req,res) =>{
     try{
@@ -101,246 +93,149 @@ router.get('/:postId',verifyToken, async(req,res) =>{
     }
 })
 
-///check expiration
+//I am just checking if post is expired or not
 const checkPostExpiration = async (req, res, next) => {
-    const postId = req.params.postId;
-    const userId = req.params.userId;
+    const postId = req.params.postId
+    const userId = req.params.userId
 
     try {
         const post = await Piazza.findById(postId);
 
-        // Check if the user is the owner of the post
-        if ((String(post.post_owner) === String(userId))) {
-            return res.status(400).json({ message: 'You cannot like your own post' });
-        }
-
         if (post.post_status === 'Live' && post.post_expirationTime < new Date()) {
             // Post is expired
-            post.post_status = 'Expired';
-            await post.save();
-            return res.status(400).json({ message: "Your post has been expired. You can't like/dislike/comment on the post." });
+            post.post_status = 'Expired'
+            await post.save()
+            return res.status(400).json({ message: "Your post has been expired. You can't like/dislike/comment on the post." })
         }
 
         if (post.post_status === 'Expired') {
             // Post is already expired
-            return res.status(400).json({ message: "Your post is already expired. You can't like/dislike/comment on the post." });
+            return res.status(400).json({ message: "Your post is already expired. You can't like/dislike/comment on the post." })
         }
 
-        next(); // Move to the next middleware
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal Server Error' });
+        next()
+    } catch (err) {
+        res.json({ message: err })
     }
-};
+}
 
 
 
-
-
-// Route for liking a post
+//I am route for liking the post , use localhost:3000/app/post/Like/PostID/UserID
 router.post('/like/:postId/:userId', verifyToken, checkPostExpiration, async (req, res) => {
     const { postId, userId } = req.params;
+    console.log('postOwner:', postOwner)
+    console.log(userId);
+    // Check if login user is the owner of the post
+    if (existingPost.post_owner.equals(userId)) {
+        return res.status(400).json({ message: 'Its your post and You cannot like it' });
+    }
 
     // Check if the post with the given postId exists
-    const existingPost = await Piazza.findById(postId);
+    const existingPost = await Piazza.findById(postId)
     if (!existingPost) {
-        return res.status(404).json({ message: 'Post not found' });
+        return res.status(404).json({ message: 'Post not found' })
     }
 
     // Check if the user with the given userId exists
     const existingUser = await User.findById(userId);
     if (!existingUser) {
-        return res.status(404).json({ message: 'User not found' });
+        return res.status(404).json({ message: 'User not found' })
     }
 
-    // Check if login user is the owner of the post
-    if (existingPost.post_owner.equals(userId)) {
-        return res.status(400).json({ message: 'You cannot like your own post' });
-    }
 
     // Check if the user has already liked the post
     if (existingPost.post_likedBy.includes(userId)) {
-        return res.status(400).json({ message: 'You have already liked this post' });
+        return res.status(400).json({ message: 'You have already liked this post' })
     }
 
     try {
         // If the user has disliked the post, remove the dislike
         if (existingPost.post_dislikedBy.includes(userId)) {
             existingPost.post_dislikedBy.splice(existingPost.post_dislikedBy.indexOf(userId), 1);
-            existingPost.post_dislikes -= 1;
+            existingPost.post_dislikes -= 1
         }
 
         // Add the like
-        existingPost.post_likedBy.push(userId);
-        existingPost.post_likes += 1;
+        existingPost.post_likedBy.push(userId)
+        existingPost.post_likes += 1
 
         // Save the updated post
-        const updatedPost = await existingPost.save();
+        const updatedPost = await existingPost.save()
 
-        res.status(200).json({ message: 'Post like status updated successfully', updatedPost });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal Server Error' });
+        res.status(200).json({ message: 'Post like status updated successfully', updatedPost })
+    } catch (err) {
+        res.json({ message: err })
     }
 });
 
-// router.post('/like/:postId/:userId', verifyToken,checkPostExpiration, async (req, res) => {
-//     const { postId, userId } = req.params;
 
-    
-
-//         // Check if the user is the owner of the post
-//         if (existingPost.post_owner.equals(userId)) {
-//             return res.status(400).json({ message: 'You cannot like your own post' });
-//         }
-        
-//         // Check if the post with the given postId exists
-//         const existingPost = await Piazza.findById(postId);
-//         if (!existingPost) {
-//             return res.status(404).json({ message: 'Post not found' });
-//         }
-
-//         // Check if the user with the given userId exists
-//         const existingUser = await User.findById(userId);
-//         if (!existingUser) {
-//             return res.status(404).json({ message: 'User not found' });
-//         }
-//     try {
-//         // Check if the user has already liked the post
-//         if (existingPost.post_likedBy.includes(userId)) {
-//             return res.status(400).json({ message: 'You have already liked this post' });
-//         }
-
-//         // If the user has disliked the post, remove the dislike
-//         if (existingPost.post_dislikedBy.includes(userId)) {
-//             existingPost.post_dislikedBy.splice(existingPost.post_dislikedBy.indexOf(userId), 1);
-//             existingPost.post_dislikes -= 1;
-//         }
-
-//         // Add the like
-//         existingPost.post_likedBy.push(userId);
-//         existingPost.post_likes += 1;
-
-//         // Save the updated post
-//         const updatedPost = await existingPost.save();
-
-//         res.status(200).json({ message: 'Post like status updated successfully', updatedPost });
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ message: 'Internal Server Error' });
-//     }
-// });
-
-
-
-// //route for dislike post
-// // Route for disliking a post
-// router.post('/dislike/:postId/:userId', verifyToken, checkPostExpiration, async (req, res) => {
-//     const { postId, userId } = req.params;
-
-//     // Check if the post with the given postId exists
-//     const existingPost = await Piazza.findById(postId);
-
-//     if (!existingPost) {
-//         return res.status(404).json({ message: 'Post not found' });
-//     }
-
-//     // Check if the user with the given userId exists
-//     const existingUser = await User.findById(userId);
-//     if (!existingUser) {
-//         return res.status(404).json({ message: 'User not found' });
-//     }
-
-//     // Check if the user has already disliked the post
-//     if (existingPost.post_dislikedBy.includes(userId)) {
-//         return res.status(400).json({ message: 'You have already disliked this post' });
-//     }
-
-//     try {
-//         // If the user has liked the post, remove the like
-//         if (existingPost.post_likedBy.includes(userId)) {
-//             existingPost.post_likedBy.splice(existingPost.post_likedBy.indexOf(userId), 1);
-//             existingPost.post_likes -= 1;
-//         }
-
-//         // Add the dislike
-//         existingPost.post_dislikedBy.push(userId);
-//         existingPost.post_dislikes += 1;
-
-//         // Save the updated post
-//         const updatedPost = await existingPost.save();
-
-//         res.status(200).json({ message: 'Post dislike status updated successfully', updatedPost });
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ message: 'Internal Server Error' });
-//     }
-// });
-
-// // Route for disliking a post
+// //I am route for diliking the post , use localhost:3000/app/post/dislike/PostID/UserID
 router.post('/dislike/:postId/:userId',verifyToken,checkPostExpiration, async (req, res) => {
     const { postId, userId } = req.params;
 
     try {
         // Check if the post with the given postId exists
         const existingPost = await Piazza.findById(postId);
+        const postOwner = existingPost.post_owner;
         console.log('postOwner:', postOwner)
+        console.log(userId);
 
          // Check if the user is the owner of the post
-         if (existingPost.post_owner === userId) {
-            return res.status(400).json({ message: 'Its your post' });
+         if (existingPost.post_owner && existingPost.post_owner.toString() === userId) {
+            return res.status(400).json({ message: 'Its your post, you cant dislike it' })
         }   
 
         if (!existingPost) {
-            return res.status(404).json({ message: 'Post not found' });
+            return res.status(404).json({ message: 'Post not found' })
         }
 
         // Check if the user with the given userId exists
         const existingUser = await User.findById(userId);
         if (!existingUser) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ message: 'User not found' })
         }
 
         // Check if the user has already disliked the post
         if (existingPost.post_dislikedBy.includes(userId)) {
-            return res.status(400).json({ message: 'You have already disliked this post' });
+            return res.status(400).json({ message: 'You have already disliked this post' })
         }
 
         // If the user has liked the post, remove the like
         if (existingPost.post_likedBy.includes(userId)) {
-            existingPost.post_likedBy.splice(existingPost.post_likedBy.indexOf(userId), 1);
+            existingPost.post_likedBy.splice(existingPost.post_likedBy.indexOf(userId), 1)
             existingPost.post_likes -= 1;
         }
 
         // Add the dislike
-        existingPost.post_dislikedBy.push(userId);
-        existingPost.post_dislikes += 1;
+        existingPost.post_dislikedBy.push(userId)
+        existingPost.post_dislikes += 1
 
         // Save the updated post
-        const updatedPost = await existingPost.save();
+        const updatedPost = await existingPost.save()
 
-        res.status(200).json({ message: 'Post dislike status updated successfully', updatedPost });
+        res.status(200).json({ message: 'Post dislike status updated successfully', updatedPost })
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Internal Server Error' });
+        res.status(500).json({ message: 'Internal Server Error' })
     }
 });
 
-///Comment
-router.post('/comment/:postId/:userId', checkPostExpiration, async (req, res) => {
-    const { postId, userId } = req.params;
-    const { commentText } = req.body;
+// //I am teh route for commen on the post , use localhost:3000/app/post/comment/PostID/UserID
+router.post('/comment/:postId/:userId', verifyToken, checkPostExpiration, async (req, res) => {
+    const { postId, userId } = req.params
+    const { commentText } = req.body
 
     try {
         // Validate that commentText is provided
         if (!commentText) {
-            return res.status(400).json({ message: 'Comment text is required.' });
+            return res.status(400).json({ message: 'Comment text is required.' })
         }
 
         // Check if the post with the given postId exists
         const existingPost = await Piazza.findById(postId);
         if (!existingPost) {
-            return res.status(404).json({ message: 'Post not found' });
+            return res.status(404).json({ message: 'Post not found' })
         }
 
         // Use $push to atomically update the arrays
@@ -355,11 +250,109 @@ router.post('/comment/:postId/:userId', checkPostExpiration, async (req, res) =>
         const updatedPost = await Piazza.findById(postId);
 
         res.status(201).json({ message: 'Comment added successfully', updatedPost });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal Server Error' });
+    } catch (err) {
+        res.json({ message: err });
     }
 });
 
-module.exports = router
 
+//I am the route for browse data based on topic 
+
+router.get('/browse/:topics', verifyToken, async (req, res) => {
+    // Extract and validate topics
+    const topics = req.params.topics.split(',').map(topic => topic.trim())
+  
+    // Validate topics against allowed values (Politics, Health, Sport, Tech)
+    const allowedTopics = ['Politics', 'Health', 'Sport', 'Tech'];
+    const isValidTopics = topics.every(topic => allowedTopics.includes(topic))
+  
+    // If topics are not valid, return an error response
+    if (!isValidTopics) {
+      return res.status(400).json({ error: 'Invalid topics specified.' })
+    }
+  
+    try {
+      // Query posts based on topics
+      const posts = await Piazza.find({ post_topics: { $all: topics } })
+  
+      // Return the posts in the response
+      res.json(posts);
+    } catch (err) {
+        res.json({ message: err })
+      }
+  });
+
+  //I am the route for browse topic data based on post_status  live
+// Route to fetch posts with a specific status (e.g., 'Live')
+router.get('/browse/liveTopics/:topics',verifyToken, async (req, res) => {
+    const requestedTopics = req.params.topics.split(',').map(topic => topic.trim())
+  
+    try {
+      const livePosts = await Piazza.find({ post_status: 'Live', post_topics: { $all: requestedTopics } })
+  
+      res.json(livePosts);
+    } catch (err) {
+      res.json({ message: err })
+    }
+  });
+
+
+// Route to fetch posts which is expired
+router.get('/browse/expireTopics/:topics',verifyToken, async (req, res) => {
+    const requestedTopics = req.params.topics.split(',').map(topic => topic.trim())
+  
+    try {
+      // Query live posts based on specified topics
+      const expirePost = await Piazza.find({ post_status: 'Expired', post_topics: { $all: requestedTopics } })
+  
+      res.json(expirePost)
+    } catch (err) {
+      res.json({ message: err })
+    }
+  })
+
+  ///Highesh post likes
+router.get('/highestLikes/:userId', verifyToken, async (req, res) => {
+    try {
+        // Query the post with the highest likes
+        const posts = await Piazza.findOne().sort({ post_likes: -1 }).limit(10);
+
+        res.json(posts)
+    } catch (err) {
+        res.json({ message: err })
+    }
+})
+
+//  ///Highest post dislikes
+router.get('/highestDislikes/:userId', verifyToken, async (req, res) => {
+    try {
+        // Query the post with the highest likes
+        const posts = await Piazza.findOne().sort({ post_dislikes: -1 }).limit(10);
+        res.json(posts)
+    } catch (err) {
+        res.json({ message: err })
+    }
+})
+  ///Highesh post likes browse all post 
+router.get('/browse/byHighestLikes/:userId', verifyToken, async (req, res) => {
+    try {
+        // Query the post with the highest likes
+        const posts = await Piazza.find().sort({ post_likes: -1 }).limit(10);
+
+        res.json(posts)
+    } catch (err) {
+        res.json({ message: err })
+    }
+})
+
+//  ///highesetpost dislikes- browse all posts based o
+router.get('/browse/byHighestDislikes/:userId', verifyToken, async (req, res) => {
+    try {
+        // Query the post with the highest likes
+        const posts = await Piazza.find().sort({ post_dislikes: -1 }).limit(10);
+        res.json(posts)
+    } catch (err) {
+        res.json({ message: err })
+    }
+})
+module.exports = router
