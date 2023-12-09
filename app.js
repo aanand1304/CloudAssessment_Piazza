@@ -15,7 +15,9 @@ const authRoute = require('./routes/UserAuthentication')
 
 app.use('/app/post',appRoute)
 app.use('/app/user',authRoute)
-
+app.get('/', (req,res)=>{
+    res.send('Welcome to Piazz App')
+})
 mongoose.connect(process.env.DB_CONNECTOR,  ()=>{
     console.log('DB is connected')
 })
