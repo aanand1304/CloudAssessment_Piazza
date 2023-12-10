@@ -4,6 +4,7 @@ const app = express()
 
 const mongoose = require('mongoose')
 const bodyParser = require('body-parser'); 
+
 require('dotenv/config')  // to import .env file
 
 app.use(bodyParser.json())
