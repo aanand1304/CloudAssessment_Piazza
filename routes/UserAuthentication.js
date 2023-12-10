@@ -62,7 +62,7 @@ router.post('/login', async(req,res)=>{
         return res.status(400).send({message:'Password is wrong'})
     }
     
-    // Generate an auth-token
+    // Generate an auth-token and we will validate it in verify token if it is correct or not
     const token = jsonwebtoken.sign({_id:user._id}, process.env.TOKEN_SECRET)
     res.header('auth-token',token).send({'auth-token':token})
 

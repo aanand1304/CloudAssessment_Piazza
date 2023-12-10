@@ -1,6 +1,5 @@
 const mongoose = require('mongoose')
 
-
 const piazzaSchema = mongoose.Schema({
     post_title: {
         type: String,
