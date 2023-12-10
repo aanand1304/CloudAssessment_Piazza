@@ -1,6 +1,6 @@
 const { send } = require('express/lib/response')
 const jsonwebtoken = require('jsonwebtoken')
-
+//Checking if token provided by user and generated token is same or not
 function auth(req,res,next){
     const token = req.header('auth-token')
     if(!token){

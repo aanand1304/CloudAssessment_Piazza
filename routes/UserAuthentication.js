@@ -7,6 +7,7 @@ const {registerValidation,loginValidation} = require('../Validations/validationU
 const bcryptjs = require('bcryptjs')
 const jsonwebtoken = require('jsonwebtoken')
 
+// This is route of user resgisteration
 router.post('/register', async(req,res)=>{
 
     // Validation 1 to check user input
@@ -40,6 +41,7 @@ router.post('/register', async(req,res)=>{
     
 })
 
+//This is route for user login
 router.post('/login', async(req,res)=>{
 
     // Validation 1 to check user input
