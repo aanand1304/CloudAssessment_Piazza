@@ -13,7 +13,7 @@ const authRoute = require('./routes/UserAuthentication')
 
 //2. Middleware
 
-app.use('/app/post',appRoute)
+app.use('/app',appRoute)
 app.use('/app/user',authRoute)
 app.get('/', (req,res)=>{
     res.send('Welcome to Piazz App')

@@ -51,7 +51,7 @@ const Post = require('../models/PiazzaSchema')
 // });
 
 //I am post portion of the code use for to post....localhost:3000/app/post/
-router.post('/', verifyToken, async (req, res) => {
+router.post('/post', verifyToken, async (req, res) => {
     try {
         ///we are taking input from user 
         const { post_title, post_topics, post_body, userExpirationTimeInMinutes } = req.body
