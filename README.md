@@ -1,4 +1,5 @@
 CloudAssessment_Piazza
+
 Overview
 Piazza is a cloud-based application inspired by Twitter, where users can post messages on different topics like Politics, Health, Sports, and Tech. Other users can interact with these posts by liking, disliking, or commenting on them. The project was developed as part of a cloud computing coursework, demonstrating the use of RESTful APIs, authentication, cloud deployment, and testing.
 
